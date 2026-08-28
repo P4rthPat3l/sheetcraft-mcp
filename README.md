@@ -29,7 +29,20 @@ Requires Node ≥ 20. The package installs two commands: **`sheets`** (CLI) and
 **`sheets-mcp`** (MCP server). `npx sheetcraft-mcp <args>` also works and behaves like
 `sheets`.
 
-## Authentication
+## Authentication — the 60-second version
+
+Add the MCP config first (next section). The first time the agent uses a Sheets tool it
+will get a clear "No credentials configured" message telling it exactly what to do. In
+agents that can run terminal commands (OpenCode, Claude Code), the agent itself runs
+`sheets auth login` — the browser opens on your machine, you click Allow, done. From then
+on everything is automatic (tokens persist + auto-refresh). No env vars required.
+
+Manual equivalent (or for agents without terminal access, like Claude Desktop):
+
+```bash
+# once, in a terminal:
+npx sheetcraft-mcp@latest auth login
+```
 
 ### Option A: OAuth — act as yourself (recommended; can create spreadsheets)
 
