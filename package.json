@@ -1,0 +1,54 @@
+{
+  "name": "gsheets-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Google Sheets MCP server + CLI for AI agents. Token-efficient reads, teaching errors, retry/backoff, full toolset coverage — one shared core, two surfaces.",
+  "license": "MIT",
+  "author": "Parth Patel",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/P4rthPat3l/gsheets-mcp.git"
+  },
+  "homepage": "https://github.com/P4rthPat3l/gsheets-mcp#readme",
+  "bugs": "https://github.com/P4rthPat3l/gsheets-mcp/issues",
+  "keywords": [
+    "mcp",
+    "google-sheets",
+    "sheets",
+    "model-context-protocol",
+    "mcp-server",
+    "google-workspace",
+    "spreadsheet",
+    "cli"
+  ],
+  "bin": {
+    "sheets-mcp": "./dist/wrappers/mcp.js",
+    "sheets": "./dist/wrappers/cli.js"
+  },
+  "files": [
+    "dist",
+    "!dist/test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run check && npm run build",
+    "test": "npm run build && node --test --test-reporter=spec \"dist/test/*.test.js\" 2>&1 | tail -12",
+    "test:full": "npm run build && node --test --test-reporter=spec \"dist/test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "googleapis": "^144.0.0",
+    "google-auth-library": "^9.15.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}
