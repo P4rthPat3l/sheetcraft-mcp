@@ -111,6 +111,19 @@ npx gsheets-mcp@latest append_rows spreadsheetId=<id> sheet=Data --stdin-json < 
 
 Same core, same auth, same errors — exit code 1 with a teaching message on failure.
 
+### Agent skill for the CLI
+
+If your agent supports skills (OpenCode, Claude Code), install the bundled one — it teaches
+the CLI conventions (quoting, stdin JSON, exit codes, pitfalls) without trial and error:
+
+```bash
+# OpenCode / Claude Code: copy or symlink into your skills directory
+ln -s "$(npm root -g)/gsheets-mcp/skills/managing-google-sheets" ~/.config/opencode/skills/managing-google-sheets
+```
+
+The skill ships inside the npm package (`skills/managing-google-sheets/SKILL.md`) — point
+your skill loader at the installed package path.
+
 ## Tool catalog (32 tools, 6 toolsets)
 
 | Toolset | Tools |
