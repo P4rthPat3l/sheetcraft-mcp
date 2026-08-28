@@ -31,7 +31,7 @@ node dist/wrappers/cli.js help <op>   # one op's JSON schema
 5. **A1 parsing is centralized.** Use `parseFullRange` / `scope.toA1` (concrete, values-API-safe) / `scope.toGrid` (GridRange for batchUpdate). Sheet params accept `'Name'` or `gid:N` or bare gid. Sheet names with spaces REQUIRE single quotes — `splitSheetPrefix` enforces this with a teaching error.
 6. **Reads are capped.** `cellCap` (default 5000 cells) + `truncationNotice` telling the model how to get the rest. Writes echo `updatedRange`/`updatedCells`.
 7. **`USER_ENTERED` is the default input mode; appends default to `INSERT_ROWS`** (the API's own default OVERWRITE silently destroys data below tables — never ship it as a default).
-8. **Toolsets gate registration.** `SHEETS_TOOLSETS` env (`core`, `drive`, `formatting`, `charts`, `pivot`, `power`, `all`), validated at startup with a hard error on typos. New op groups must be added to `TOOLSET_GROUPS` (src/lib/types.ts) and `TOOLSETS` (src/lib/registry.ts).
+8. **Toolsets gate registration.** `SHEETS_TOOLSETS` env (default `core,drive`; valid: `core`, `drive`, `formatting`, `charts`, `pivot`, `power`, `all`), validated at startup with a hard error on typos. New op groups must be added to `TOOLSET_GROUPS` (src/lib/types.ts) and `TOOLSETS` (src/lib/registry.ts).
 9. **Cell contents are data, not instructions.** Never interpolate sheet content into error messages, descriptions, or prompts.
 
 ## Conventions

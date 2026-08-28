@@ -105,7 +105,7 @@ function coerceArgs(op: Op, args: Record<string, unknown>): Record<string, unkno
   return out;
 }
 
-async function main(): Promise<number> {
+export async function main(): Promise<number> {
   const argv = process.argv.slice(2);
   if (argv.length === 0 || argv[0] === '--help' || (argv[0] === 'help' && !argv[1])) {
     process.stdout.write(usage() + '\n');
@@ -212,9 +212,17 @@ function lazySvc(): Svc {
   });
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((err) => {
-    process.stderr.write(`sheets: ${err instanceof Error ? err.message : String(err)}\n`);
-    process.exit(1);
-  });
+import { pathToFileURL } from 'node:url';
+
+// Only auto-run when executed directly (`sheets …`, `node dist/wrappers/cli.js …`).
+// mcp.js imports main() for bin delegation; a bare import must not execute the CLI.
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      process.stderr.write(`sheets: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exit(1);
+    });
+}

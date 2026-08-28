@@ -11,6 +11,18 @@ import { getGoogleServices } from '../lib/google.js';
 import { assertValidToolsets, selectToolsets } from '../lib/registry.js';
 import { runOp } from '../lib/run.js';
 import type { Op } from '../lib/types.js';
+import { main as cliMain } from './cli.js';
+
+// The `sheetcraft-mcp` bin doubles as the CLI: `npx sheetcraft-mcp auth login`
+// must not start a stdio server and hang. Args → CLI; no args → MCP server.
+if (process.argv.length > 2) {
+  cliMain()
+    .then((code) => process.exit(code))
+    .catch((err: unknown) => {
+      process.stderr.write(`sheets-mcp: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exit(1);
+    });
+} else {
 
 const toolsetsSpec = process.env.SHEETS_TOOLSETS ?? 'core,drive';
 assertValidToolsets(toolsetsSpec);
@@ -67,3 +79,4 @@ for (const op of ops) registerOp(op);
 
 await server.connect(new StdioServerTransport());
 process.stderr.write(`sheets-mcp: ${ops.length} tools registered (toolsets: ${toolsetsSpec})\n`);
+}

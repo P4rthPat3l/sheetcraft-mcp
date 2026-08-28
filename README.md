@@ -9,7 +9,7 @@ Built to be **reliable** and **token-efficient** where other Sheets MCPs aren't:
 - **Write echoes** — every write returns `updatedRange` / `updatedCells` so the agent closes its own loop without a verification read.
 - **Retry + backoff built in** — 429/5xx/network errors retry with truncated exponential backoff + jitter before surfacing; the message says so.
 - **Safe defaults** — `append_rows` uses `INSERT_ROWS` (never overwrites), `USER_ENTERED` parsing by default, destructive tools annotated truthfully.
-- **32 tools in 6 opt-in toolsets** — register only what you need (`SHEETS_TOOLSETS=core` ≈ 4K tokens, all 32 ≈ 9.4K).
+- **32 tools in 6 opt-in toolsets** — register only what you need (`SHEETS_TOOLSETS=core` ≈ 4K tokens, all 32 ≈ 9.4K; default is `core,drive`).
 - **Auth two ways** — OAuth as yourself (can create spreadsheets) or a service account (edit-only on shared files). One `sheets auth login`, tokens persist and auto-refresh.
 - **MCP server AND CLI** — same core: MCP for chat agents (Claude Desktop, OpenCode, any MCP client), CLI for scripting, piping, and bulk work.
 
@@ -25,9 +25,10 @@ npm install -g sheetcraft-mcp
 sheets auth login
 ```
 
-Requires Node ≥ 20. The package installs two commands: **`sheets`** (CLI) and
-**`sheets-mcp`** (MCP server). `npx sheetcraft-mcp <args>` also works and behaves like
-`sheets`.
+Requires Node ≥ 20. The package installs three commands: **`sheets`** (CLI) and
+**`sheets-mcp`** (MCP server), plus **`sheetcraft-mcp`** which is both — with arguments it
+runs the CLI (`npx sheetcraft-mcp@latest auth login`), with none it starts the MCP server
+(that's what the MCP configs below use).
 
 ## Authentication — the 60-second version
 
@@ -170,8 +171,13 @@ If your agent supports skills (OpenCode, Claude Code), install the bundled one �
 the CLI conventions (quoting, stdin JSON, exit codes, pitfalls) without trial and error:
 
 ```bash
-# OpenCode / Claude Code: copy or symlink into your skills directory
-ln -s "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" ~/.config/opencode/skills/managing-google-sheets
+# Claude Code — symlink into the skills directory:
+ln -s "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
+      ~/.claude/skills/managing-google-sheets
+
+# OpenCode — copy into the skill directory (`skill`, singular):
+cp -r "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
+      ~/.config/opencode/skill/managing-google-sheets
 ```
 
 The skill ships inside the npm package (`skills/managing-google-sheets/SKILL.md`) — point
@@ -188,7 +194,8 @@ your skill loader at the installed package path.
 | **pivot** (2) | `create_pivot` · `delete_pivot` |
 | **power** (2) | `batch_update` (raw escape hatch for all ~70 batchUpdate request types) · `sort_range` |
 
-Select with `SHEETS_TOOLSETS=core` (default) / `all` / comma list. Unknown names hard-fail at startup.
+Select with `SHEETS_TOOLSETS` — default `core,drive` (20 tools); `all` for all 32; or any
+comma list. Unknown names hard-fail at startup.
 
 ## Design notes for agent reliability
 
@@ -202,12 +209,12 @@ Select with `SHEETS_TOOLSETS=core` (default) / `all` / comma list. Unknown names
 
 | Var | Purpose |
 |---|---|
-| `SHEETS_TOOLSETS` | `core` (default), `drive`, `formatting`, `charts`, `pivot`, `power`, `all`, or comma list |
+| `SHEETS_TOOLSETS` | Default `core,drive`; also `core`, `drive`, `formatting`, `charts`, `pivot`, `power`, `all`, or comma list |
 | `GOOGLE_SERVICE_ACCOUNT_CREDENTIALS` / `_FILE` | SA key JSON (raw) / path |
 | `SHEETS_AUTH_MODE` | Force `oauth` or `service-account` |
 | `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | Alternative to oauth-client.json |
 | `GOOGLE_OAUTH_TOKEN_FILE` / `SHEETS_OAUTH_CLIENT_FILE` | Custom token/client paths |
-| `SHEETS_MAX_CELLS` | Read cap per call (default 5000, hard max 50000) |
+| `SHEETS_MAX_CELLS` | Read cap per call (default 5000) |
 | `SHEETS_RETRY_ATTEMPTS` / `_BASE_MS` / `_MAX_MS` | Retry tuning (default 3, 300ms, 8s) |
 
 ## Known limitations

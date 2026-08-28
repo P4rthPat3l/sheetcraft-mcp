@@ -12,7 +12,7 @@ export const shareSpreadsheetOp: Op = {
   name: 'share_spreadsheet',
   group: 'drive',
   description:
-    'Grant a Google account access to a spreadsheet. Use this after create_spreadsheet, or the sheet stays invisible to humans (service accounts own what they create).',
+    'Grant a Google account access to a spreadsheet. In service-account mode use this after create_spreadsheet, or the sheet stays invisible to humans (SAs own what they create).',
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   inputSchema: zodSchema(
     z.object({
@@ -48,7 +48,7 @@ export const findSpreadsheetsOp: Op = {
   name: 'find_spreadsheets',
   group: 'drive',
   description:
-    'Search spreadsheets by name. Returns candidate IDs + names + modified times; IDs are not auto-selected. Note: only sees spreadsheets shared with (or created by) this service account.',
+    'Search spreadsheets by name. Returns candidate IDs + names + modified times; IDs are not auto-selected. Note: only sees spreadsheets the authenticated identity can access (OAuth: your Drive; SA: files shared with it).',
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   inputSchema: zodSchema(
     z.object({
@@ -77,7 +77,7 @@ export const findSpreadsheetsOp: Op = {
     if (files.length === 0) {
       return {
         text:
-          'No spreadsheets found. Files must be shared with the service account email (or created by it) to be visible here.',
+          'No spreadsheets found. In service-account mode, files must be shared with the SA email (or created by it) to be visible here.',
         structured: { files: [] },
       } satisfies OpResult;
     }
@@ -94,7 +94,7 @@ export const createSpreadsheetOp: Op = {
   name: 'create_spreadsheet',
   group: 'drive',
   description:
-    'Create a new empty spreadsheet. Owned by the service account — pass shareWith emails or it stays invisible to humans. Add headers with append_rows afterwards.',
+    'Create a new empty spreadsheet. Owned by whoever is logged in (OAuth: you; service account: the SA). In SA mode pass shareWith emails or it stays invisible to humans. Add headers with append_rows afterwards.',
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   inputSchema: zodSchema(
     z.object({
@@ -131,7 +131,7 @@ export const createSpreadsheetOp: Op = {
         `URL: https://docs.google.com/spreadsheets/d/${id}/edit` +
         (shared > 0
           ? `\nShared with ${shared} email(s).`
-          : '\nCreated empty — add headers with append_rows next. (If logged in via service account, also share it: SAs own what they create.)'),
+          : '\nCreated empty — add headers with append_rows next. (In service-account mode, also share it: SAs own what they create.)'),
       structured: { spreadsheetId: id, url: `https://docs.google.com/spreadsheets/d/${id}/edit`, sharedWith: shared },
     } satisfies OpResult;
   },
