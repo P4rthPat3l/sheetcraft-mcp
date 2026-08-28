@@ -28,6 +28,7 @@
   "files": [
     "dist",
     "!dist/test",
+    "skills",
     "README.md",
     "LICENSE"
   ],
