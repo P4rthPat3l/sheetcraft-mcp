@@ -1,8 +1,8 @@
 {
   "name": "sheetcraft-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
-  "description": "SheetCraft MCP \u2014 reliable, token-efficient Google Sheets MCP server + CLI for AI agents. 32 tools, teaching errors, capped reads, dual auth (OAuth + service account).",
+  "description": "SheetCraft MCP — reliable, token-efficient Google Sheets MCP server + CLI for AI agents. 32 tools, teaching errors, capped reads, dual auth (OAuth + service account).",
   "license": "MIT",
   "author": "Parth Patel",
   "repository": {
