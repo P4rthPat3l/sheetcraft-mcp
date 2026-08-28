@@ -46,18 +46,49 @@ npx sheetcraft-mcp@latest auth login
 
 ### Option A: OAuth — act as yourself (recommended; can create spreadsheets)
 
-1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → enable **Google Sheets API** + **Google Drive API** → **Create Credentials → OAuth client ID → Desktop app** → download the JSON.
-2. Save it as `~/.config/sheetcraft-mcp/oauth-client.json` (or set `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`).
-3. Log in once:
+**The mental model first** — there are exactly two JSON files in this flow, and knowing
+which is which removes all the confusion:
+
+```
+client_secret_xxx.json   your APP's identity with Google  → used ONCE by `auth login`
+oauth-tokens.json        YOUR logged-in session           → created automatically, auto-refreshes
+```
+
+The downloaded `client_secret_*.json` is **not** a credential you put in the MCP config or
+env — it's the key fob that lets the tool open a login flow. It's consumed once by
+`auth login`; after that the saved *token* does all the work and the MCP config itself
+contains **zero secrets**.
+
+**Steps:**
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials): enable **Google Sheets API** + **Google Drive API** → **Create Credentials → OAuth client ID → Desktop app** → download the JSON.
+2. Hand the file to `auth login` — any ONE of these three ways:
 
 ```bash
-npx sheetcraft-mcp@latest auth login     # browser opens, consent, done
-# (alternative) point directly at the downloaded JSON, wherever it is:
+# (a) zero file moves — point at the download directly:
 npx sheetcraft-mcp@latest auth login --client ~/Downloads/client_secret_xxx.json
+
+# (b) or park it in the config dir once, then plain login forever after:
+mkdir -p ~/.config/sheetcraft-mcp
+cp ~/Downloads/client_secret_xxx.json ~/.config/sheetcraft-mcp/oauth-client.json
+npx sheetcraft-mcp@latest auth login
+
+# (c) or skip the file — set the values it contains as env vars:
+#     GOOGLE_OAUTH_CLIENT_ID=…xxx.apps.googleusercontent.com
+#     GOOGLE_OAUTH_CLIENT_SECRET=…
+npx sheetcraft-mcp@latest auth login
+```
+
+3. Browser opens → consent → done. Check with:
+
+```bash
 npx sheetcraft-mcp@latest auth status
 ```
 
-Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600) and auto-refresh. Your spreadsheets, your ownership — `create_spreadsheet` works.
+Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600) and auto-refresh —
+after login you can even delete the downloaded JSON. Your spreadsheets, your ownership —
+`create_spreadsheet` works. Works the same on Linux, macOS and Windows (paths resolve via
+your home directory).
 
 > **Consent-screen gotchas** (your app is in "Testing" mode until Google verifies it):
 > - *"Access blocked … has not completed the Google verification process / Error 403: access_denied"* — your Google account isn't a **test user**. Fix: Cloud Console → **APIs & Services → OAuth consent screen → Audience/Test users → Add users** → add the account you're logging in with. Or click **Advanced → Go to <app> (unsafe)** if that option appears.
