@@ -168,7 +168,15 @@ async function authCommand(argv: string[]): Promise<number> {
       process.stdout.write(`Already logged in as ${stored.email ?? '(unknown email)'}. Run \`sheets auth logout\` first to switch accounts.\n`);
       return 0;
     }
-    const result = await loginFlow({ forceConsent: argv.includes('--force-consent') });
+    // --client <path>: point directly at the downloaded OAuth client JSON —
+    // no need to know the config directory.
+    const clientFlagIdx = argv.findIndex((a) => a === '--client');
+    const clientFile = clientFlagIdx !== -1 ? argv[clientFlagIdx + 1] : undefined;
+    const rest = argv.filter((a, i) => a !== '--client' && i !== clientFlagIdx + 1 && a !== '--force-consent');
+    const result = await loginFlow({
+      forceConsent: argv.includes('--force-consent') || argv.includes('--force'),
+      clientFile,
+    });
     process.stdout.write(`Logged in as ${result.email || '(email unavailable)'}.\nTokens stored at ${result.tokenFile}\nYou can now create spreadsheets as yourself: sheets create_spreadsheet name="My sheet"\n`);
     return 0;
   }

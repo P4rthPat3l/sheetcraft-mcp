@@ -61,12 +61,12 @@ export function clearStoredTokens(): boolean {
  *   GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET env vars,
  *   then the well-known file (supports flat format and gcloud-style installed/web blocks).
  */
-export function loadClientConfig(): { clientId: string; clientSecret: string } {
+export function loadClientConfig(explicitPath?: string): { clientId: string; clientSecret: string } {
   const id = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const secret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   if (id && secret) return { clientId: id, clientSecret: secret };
 
-  const path = oauthClientFile();
+  const path = explicitPath ?? oauthClientFile();
   if (existsSync(path)) {
     try {
       const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
@@ -126,8 +126,8 @@ export interface LoginResult {
  * Interactive login: loopback server on an ephemeral port → browser consent →
  * code exchange → tokens persisted (0600). Returns the authenticated email.
  */
-export async function loginFlow(opts: { forceConsent?: boolean } = {}): Promise<LoginResult> {
-  const { clientId, clientSecret } = loadClientConfig();
+export async function loginFlow(opts: { forceConsent?: boolean; clientFile?: string } = {}): Promise<LoginResult> {
+  const { clientId, clientSecret } = loadClientConfig(opts.clientFile);
   const client = new OAuth2Client({ clientId, clientSecret });
   let redirectUriValue = '';
 

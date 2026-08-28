@@ -52,12 +52,17 @@ npx sheetcraft-mcp@latest auth login
 
 ```bash
 npx sheetcraft-mcp@latest auth login     # browser opens, consent, done
+# (alternative) point directly at the downloaded JSON, wherever it is:
+npx sheetcraft-mcp@latest auth login --client ~/Downloads/client_secret_xxx.json
 npx sheetcraft-mcp@latest auth status
 ```
 
 Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600) and auto-refresh. Your spreadsheets, your ownership — `create_spreadsheet` works.
 
-> Unverified-app warning screen during consent is expected for your own test app: **Advanced → Go to app → Allow**. Add your Google account as a **Test user** on the OAuth consent screen first.
+> **Consent-screen gotchas** (your app is in "Testing" mode until Google verifies it):
+> - *"Access blocked … has not completed the Google verification process / Error 403: access_denied"* — your Google account isn't a **test user**. Fix: Cloud Console → **APIs & Services → OAuth consent screen → Audience/Test users → Add users** → add the account you're logging in with. Or click **Advanced → Go to <app> (unsafe)** if that option appears.
+> - *"unverified app" warning screen* — expected for your own test app: **Advanced → Go to app (unsafe) → Allow**.
+> - Don't want any of this? Skip OAuth entirely and use a **service account** (Option B below).
 
 ### Option B: Service account — edit-only on shared files
 
