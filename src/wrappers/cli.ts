@@ -172,7 +172,6 @@ async function authCommand(argv: string[]): Promise<number> {
     // no need to know the config directory.
     const clientFlagIdx = argv.findIndex((a) => a === '--client');
     const clientFile = clientFlagIdx !== -1 ? argv[clientFlagIdx + 1] : undefined;
-    const rest = argv.filter((a, i) => a !== '--client' && i !== clientFlagIdx + 1 && a !== '--force-consent');
     const result = await loginFlow({
       forceConsent: argv.includes('--force-consent') || argv.includes('--force'),
       clientFile,
