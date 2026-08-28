@@ -117,7 +117,7 @@ export function authStatus(): { mode: AuthMode; detail: string } {
     const stored = loadStoredTokens();
     return {
       mode,
-      detail: `logged in as ${stored?.email ?? '(unknown email)'} — tokens at ${process.env.GOOGLE_OAUTH_TOKEN_FILE ?? '~/.config/gsheets-mcp/oauth-tokens.json'}`,
+      detail: `logged in as ${stored?.email ?? '(unknown email)'} — tokens at ${process.env.GOOGLE_OAUTH_TOKEN_FILE ?? '~/.config/sheetcraft-mcp/oauth-tokens.json'}`,
     };
   }
   if (mode === 'service-account') {

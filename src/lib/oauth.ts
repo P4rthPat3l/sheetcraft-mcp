@@ -15,13 +15,13 @@ export const OAUTH_SCOPES = [
 export function oauthClientFile(): string {
   return (
     process.env.SHEETS_OAUTH_CLIENT_FILE ??
-    join(homedir(), '.config', 'gsheets-mcp', 'oauth-client.json')
+    join(homedir(), '.config', 'sheetcraft-mcp', 'oauth-client.json')
   );
 }
 
 /** Where tokens are persisted (0600). Override with GOOGLE_OAUTH_TOKEN_FILE. */
 export function tokenStorePath(): string {
-  return process.env.GOOGLE_OAUTH_TOKEN_FILE ?? join(homedir(), '.config', 'gsheets-mcp', 'oauth-tokens.json');
+  return process.env.GOOGLE_OAUTH_TOKEN_FILE ?? join(homedir(), '.config', 'sheetcraft-mcp', 'oauth-tokens.json');
 }
 
 export interface StoredTokens {

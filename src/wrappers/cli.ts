@@ -156,7 +156,7 @@ async function main(): Promise<number> {
 
 /**
  * `sheets auth login|status|logout` — interactive browser consent, once.
- * Tokens persist at ~/.config/gsheets-mcp/oauth-tokens.json (0600) and
+ * Tokens persist at ~/.config/sheetcraft-mcp/oauth-tokens.json (0600) and
  * auto-refresh afterwards; both CLI and MCP use them automatically.
  */
 async function authCommand(argv: string[]): Promise<number> {
