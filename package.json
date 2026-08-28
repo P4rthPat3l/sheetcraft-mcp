@@ -1,16 +1,16 @@
 {
-  "name": "gsheets-mcp",
-  "version": "0.1.0",
+  "name": "sheetcraft-mcp",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Google Sheets MCP server + CLI for AI agents. Token-efficient reads, teaching errors, retry/backoff, full toolset coverage — one shared core, two surfaces.",
+  "description": "SheetCraft MCP \u2014 reliable, token-efficient Google Sheets MCP server + CLI for AI agents. 32 tools, teaching errors, capped reads, dual auth (OAuth + service account).",
   "license": "MIT",
   "author": "Parth Patel",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/P4rthPat3l/gsheets-mcp.git"
+    "url": "git+https://github.com/P4rthPat3l/sheetcraft-mcp.git"
   },
-  "homepage": "https://github.com/P4rthPat3l/gsheets-mcp#readme",
-  "bugs": "https://github.com/P4rthPat3l/gsheets-mcp/issues",
+  "homepage": "https://github.com/P4rthPat3l/sheetcraft-mcp#readme",
+  "bugs": "https://github.com/P4rthPat3l/sheetcraft-mcp/issues",
   "keywords": [
     "mcp",
     "google-sheets",
@@ -22,8 +22,8 @@
     "cli"
   ],
   "bin": {
-    "sheets-mcp": "./dist/wrappers/mcp.js",
-    "sheets": "./dist/wrappers/cli.js"
+    "sheets-mcp": "dist/wrappers/mcp.js",
+    "sheets": "dist/wrappers/cli.js"
   },
   "files": [
     "dist",

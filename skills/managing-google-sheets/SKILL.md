@@ -1,11 +1,11 @@
 ---
 name: managing-google-sheets
-description: Use when reading, writing, formatting, charting, or organizing data in Google Sheets via the sheets CLI (gsheets-mcp package). Triggers — the user mentions Google Sheets, a docs.google.com/spreadsheets URL, spreadsheet, sheet, tab, cells, rows, formulas, charts, formatting a sheet, pivot-style summaries, or asks to log/track/update/tabulate data in Sheets.
+description: Use when reading, writing, formatting, charting, or organizing data in Google Sheets via the sheets CLI (sheetcraft-mcp package). Triggers — the user mentions Google Sheets, a docs.google.com/spreadsheets URL, spreadsheet, sheet, tab, cells, rows, formulas, charts, formatting a sheet, pivot-style summaries, or asks to log/track/update/tabulate data in Sheets.
 ---
 
 # Managing Google Sheets via the `sheets` CLI
 
-The `sheets` CLI (from the `gsheets-mcp` npm package) is the terminal surface for a Google
+The `sheets` CLI (from the `sheetcraft-mcp` npm package) is the terminal surface for a Google
 Sheets toolset. One install provides both this CLI and an MCP server (`sheets-mcp`); they
 share auth and behavior. Prefer the CLI when working from a terminal/agent context.
 
@@ -16,7 +16,7 @@ Auth must exist before the first API call. Check once:
 ```bash
 sheets auth status
 # not logged in? one-time setup:
-#   1. OAuth client (Desktop app) JSON → ~/.config/gsheets-mcp/oauth-client.json
+#   1. OAuth client (Desktop app) JSON → ~/.config/sheetcraft-mcp/oauth-client.json
 #   2. sheets auth login        # opens browser, consent, done
 ```
 

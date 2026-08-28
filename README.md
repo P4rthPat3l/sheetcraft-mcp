@@ -1,4 +1,4 @@
-# gsheets-mcp
+# sheetcraft-mcp
 
 Google Sheets MCP server + CLI for AI agents — **one shared core, two surfaces**.
 
@@ -17,10 +17,10 @@ Built to be **reliable** and **token-efficient** where other Sheets MCPs aren't:
 
 ```bash
 # Run directly with npx (no install)
-npx gsheets-mcp@latest
+npx sheetcraft-mcp@latest
 
 # or install globally
-npm install -g gsheets-mcp
+npm install -g sheetcraft-mcp
 ```
 
 Requires Node ≥ 20.
@@ -30,15 +30,15 @@ Requires Node ≥ 20.
 ### Option A: OAuth — act as yourself (recommended; can create spreadsheets)
 
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → enable **Google Sheets API** + **Google Drive API** → **Create Credentials → OAuth client ID → Desktop app** → download the JSON.
-2. Save it as `~/.config/gsheets-mcp/oauth-client.json` (or set `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`).
+2. Save it as `~/.config/sheetcraft-mcp/oauth-client.json` (or set `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`).
 3. Log in once:
 
 ```bash
-npx gsheets-mcp@latest auth login     # browser opens, consent, done
-npx gsheets-mcp@latest auth status
+npx sheetcraft-mcp@latest auth login     # browser opens, consent, done
+npx sheetcraft-mcp@latest auth status
 ```
 
-Tokens persist at `~/.config/gsheets-mcp/oauth-tokens.json` (0600) and auto-refresh. Your spreadsheets, your ownership — `create_spreadsheet` works.
+Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600) and auto-refresh. Your spreadsheets, your ownership — `create_spreadsheet` works.
 
 > Unverified-app warning screen during consent is expected for your own test app: **Advanced → Go to app → Allow**. Add your Google account as a **Test user** on the OAuth consent screen first.
 
@@ -66,7 +66,7 @@ export GOOGLE_SERVICE_ACCOUNT_CREDENTIALS="$(cat service-account.json)"
   "mcp": {
     "sheets": {
       "type": "local",
-      "command": ["npx", "-y", "gsheets-mcp@latest"],
+      "command": ["npx", "-y", "sheetcraft-mcp@latest"],
       "environment": {
         "SHEETS_TOOLSETS": "core,drive"
       },
@@ -91,7 +91,7 @@ Gate destructive tools in agent config:
   "mcpServers": {
     "sheets": {
       "command": "npx",
-      "args": ["-y", "gsheets-mcp@latest"],
+      "args": ["-y", "sheetcraft-mcp@latest"],
       "env": { "SHEETS_TOOLSETS": "core,drive,formatting,charts" }
     }
   }
@@ -101,12 +101,12 @@ Gate destructive tools in agent config:
 ## The CLI
 
 ```bash
-npx gsheets-mcp@latest list                        # all 32 ops by toolset
-npx gsheets-mcp@latest help get_values             # one op's parameters
-npx gsheets-mcp@latest resolve_target url="https://docs.google.com/spreadsheets/d/…/edit"
-npx gsheets-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10"
-npx gsheets-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10" format=records
-npx gsheets-mcp@latest append_rows spreadsheetId=<id> sheet=Data --stdin-json < rows.json
+npx sheetcraft-mcp@latest list                        # all 32 ops by toolset
+npx sheetcraft-mcp@latest help get_values             # one op's parameters
+npx sheetcraft-mcp@latest resolve_target url="https://docs.google.com/spreadsheets/d/…/edit"
+npx sheetcraft-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10"
+npx sheetcraft-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10" format=records
+npx sheetcraft-mcp@latest append_rows spreadsheetId=<id> sheet=Data --stdin-json < rows.json
 ```
 
 Same core, same auth, same errors — exit code 1 with a teaching message on failure.
@@ -118,7 +118,7 @@ the CLI conventions (quoting, stdin JSON, exit codes, pitfalls) without trial an
 
 ```bash
 # OpenCode / Claude Code: copy or symlink into your skills directory
-ln -s "$(npm root -g)/gsheets-mcp/skills/managing-google-sheets" ~/.config/opencode/skills/managing-google-sheets
+ln -s "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" ~/.config/opencode/skills/managing-google-sheets
 ```
 
 The skill ships inside the npm package (`skills/managing-google-sheets/SKILL.md`) — point

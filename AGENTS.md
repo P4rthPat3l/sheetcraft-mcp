@@ -1,4 +1,4 @@
-# gsheets-mcp
+# sheetcraft-mcp
 
 Shared-core Google Sheets MCP server + CLI. Both surfaces are thin wrappers over the same op library — reliability and token-efficiency live in `src/lib`, never in a wrapper.
 
@@ -52,7 +52,7 @@ node dist/wrappers/cli.js help <op>   # one op's JSON schema
 
 Two credential modes, resolved automatically (`resolveAuthMode` in src/lib/google.ts):
 
-1. **OAuth user flow** (preferred): `sheets auth login` — browser consent once, tokens persisted at `~/.config/gsheets-mcp/oauth-tokens.json` (0600), auto-refreshed and re-persisted on every refresh. Acts as the user; **can create/copy spreadsheets**. Requires an OAuth Client ID (Desktop app) at `~/.config/gsheets-mcp/oauth-client.json` (or `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` env).
+1. **OAuth user flow** (preferred): `sheets auth login` — browser consent once, tokens persisted at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600), auto-refreshed and re-persisted on every refresh. Acts as the user; **can create/copy spreadsheets**. Requires an OAuth Client ID (Desktop app) at `~/.config/sheetcraft-mcp/oauth-client.json` (or `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` env).
 2. **Service account**: env credentials. Cannot create files (Google gives SAs a 0-byte storage quota — `storageQuotaExceeded` on `files.create`). Edit-only on files shared with the SA.
 
 Explicit override: `SHEETS_AUTH_MODE=oauth|service-account`. Token exchange requires the SAME `redirect_uri` used in the auth URL — pass `{ code, redirect_uri }` to `client.getToken`, not just the code. Loopback redirect uses an ephemeral port (`server.listen(0)`); Desktop-app clients allow any loopback port without URI registration. Don't set `prompt: undefined` in `generateAuthUrl` — it emits `prompt=` and Google rejects with `invalid_request`. The email for display comes from `drive.about.get` (we don't request `userinfo.email` scope).
