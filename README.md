@@ -17,13 +17,17 @@ Built to be **reliable** and **token-efficient** where other Sheets MCPs aren't:
 
 ```bash
 # Run directly with npx (no install)
-npx sheetcraft-mcp@latest
+npx sheetcraft-mcp@latest auth login
+npx sheetcraft-mcp@latest auth status
 
-# or install globally
+# or install globally — then the commands are `sheets` and `sheets-mcp`
 npm install -g sheetcraft-mcp
+sheets auth login
 ```
 
-Requires Node ≥ 20.
+Requires Node ≥ 20. The package installs two commands: **`sheets`** (CLI) and
+**`sheets-mcp`** (MCP server). `npx sheetcraft-mcp <args>` also works and behaves like
+`sheets`.
 
 ## Authentication
 
