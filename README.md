@@ -1,69 +1,97 @@
 # sheetcraft-mcp
 
-Google Sheets MCP server + CLI for AI agents — **one shared core, two surfaces**.
+Google Sheets MCP server + CLI for AI agents. One shared engine, two surfaces:
 
-Built to be **reliable** and **token-efficient** where other Sheets MCPs aren't:
+- **MCP server** — for chat agents (Claude Desktop, Claude Code, OpenCode, any MCP client). Tools appear in the agent's tool list and are permission-gateable.
+- **CLI** (`sheets`) — for scripts, pipes, and bulk work. Same 32 operations, same auth, same errors, one process per command.
 
-- **Teaching errors** — a bad range or sheet name returns `INVALID_ARGUMENT` with an example, the list of available sheets, and how to fix it. Models self-correct instead of thrashing.
-- **Token-efficient reads** — `get_values` defaults to CSV (~3-5× denser than JSON grids), offers `records` (header-joined objects) and `grid`, hard-caps every read at 5,000 cells (configurable), and truncates with an explicit notice telling the model how to get the rest.
-- **Write echoes** — every write returns `updatedRange` / `updatedCells` so the agent closes its own loop without a verification read.
-- **Retry + backoff built in** — 429/5xx/network errors retry with truncated exponential backoff + jitter before surfacing; the message says so.
-- **Safe defaults** — `append_rows` uses `INSERT_ROWS` (never overwrites), `USER_ENTERED` parsing by default, destructive tools annotated truthfully.
-- **32 tools in 6 opt-in toolsets** — register only what you need (`SHEETS_TOOLSETS=core` ≈ 4K tokens, all 32 ≈ 9.4K; default is `core,drive`).
-- **Auth two ways** — OAuth as yourself (can create spreadsheets) or a service account (edit-only on shared files). One `sheets auth login`, tokens persist and auto-refresh.
-- **MCP server AND CLI** — same core: MCP for chat agents (Claude Desktop, OpenCode, any MCP client), CLI for scripting, piping, and bulk work.
+Designed for agent reliability: **teaching errors** (a bad range returns an example + the list of available sheets, not a stack trace), **token-efficient reads** (CSV defaults, hard cell caps, explicit truncation notices), and **write echoes** (`updatedRange`/`updatedCells` on every write so the agent closes its own loop without a verification read).
+
+---
+
+## Requirements
+
+- **Node ≥ 20**
+- A Google account, and either an **OAuth Client ID** (recommended — see [Option A](#option-a-oauth--act-as-yourself)) or a **service account key** (see [Option B](#option-b-service-account--edit-only-on-shared-files))
+- Works on **Linux, macOS, and Windows** (all paths resolve under your home directory)
 
 ## Install
 
 ```bash
-# Run directly with npx (no install)
-npx sheetcraft-mcp@latest auth login
-npx sheetcraft-mcp@latest auth status
+# Run directly with npx — no install step
+npx sheetcraft-mcp@latest --help
 
-# or install globally — then the commands are `sheets` and `sheets-mcp`
+# or install globally — then use the `sheets` and `sheets-mcp` commands
 npm install -g sheetcraft-mcp
-sheets auth login
 ```
 
-Requires Node ≥ 20. The package installs three commands: **`sheets`** (CLI) and
-**`sheets-mcp`** (MCP server), plus **`sheetcraft-mcp`** which is both — with arguments it
-runs the CLI (`npx sheetcraft-mcp@latest auth login`), with none it starts the MCP server
-(that's what the MCP configs below use).
+Three commands are installed:
 
-## Authentication — the 60-second version
+| Command | What it is |
+|---|---|
+| `sheets` | The CLI |
+| `sheets-mcp` | The MCP server (stdio) |
+| `sheetcraft-mcp` | Both — **with arguments** it runs the CLI, **with none** it starts the MCP server. This is what MCP configs use (`npx sheetcraft-mcp@latest`). |
 
-Add the MCP config first (next section). The first time the agent uses a Sheets tool it
-will get a clear "No credentials configured" message telling it exactly what to do. In
-agents that can run terminal commands (OpenCode, Claude Code), the agent itself runs
-`sheets auth login` — the browser opens on your machine, you click Allow, done. From then
-on everything is automatic (tokens persist + auto-refresh). No env vars required.
+## Quick start
 
-Manual equivalent (or for agents without terminal access, like Claude Desktop):
+**1. Add the MCP config** (OpenCode example; Claude Desktop and others in [MCP configuration](#mcp-configuration)):
+
+```jsonc
+// opencode.json
+{
+  "mcp": {
+    "sheets": {
+      "type": "local",
+      "command": ["npx", "-y", "sheetcraft-mcp@latest"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**2. Authenticate once** (in a terminal — see [Authentication](#authentication) for details):
 
 ```bash
-# once, in a terminal:
 npx sheetcraft-mcp@latest auth login
 ```
 
-### Option A: OAuth — act as yourself (recommended; can create spreadsheets)
+A browser opens → you consent → done. Tokens persist and auto-refresh; the MCP config itself contains no secrets.
 
-**The mental model first** — there are exactly two JSON files in this flow, and knowing
-which is which removes all the confusion:
+**3. Use it.** In agents with terminal access (OpenCode, Claude Code), the agent can do this whole setup itself: the first Sheets tool call without credentials returns a teaching message that says exactly what to run. Tools appear as `sheets_get_values`, `sheets_update_values`, etc.
+
+---
+
+## Authentication
+
+Two modes. Pick **one**.
+
+| | Option A: OAuth | Option B: Service account |
+|---|---|---|
+| Acts as | **You** (your Google account) | A robot account |
+| Can create/copy spreadsheets | ✅ Yes | ❌ No (Google gives SAs a 0-byte storage quota) |
+| Setup | Browser consent, once | Env vars + manual sharing of each file |
+| Recommended for | Personal use, agents that create files | CI, servers, headless setups |
+
+### The two-file mental model
+
+OAuth confuses everyone exactly once — when they see two JSON files. Here is the whole thing:
 
 ```
 client_secret_xxx.json   your APP's identity with Google  → used ONCE by `auth login`
 oauth-tokens.json        YOUR logged-in session           → created automatically, auto-refreshes
 ```
 
-The downloaded `client_secret_*.json` is **not** a credential you put in the MCP config or
-env — it's the key fob that lets the tool open a login flow. It's consumed once by
-`auth login`; after that the saved *token* does all the work and the MCP config itself
-contains **zero secrets**.
+The `client_secret_*.json` you download from Google is **not** a credential for the MCP config or env — it's the key fob that lets the tool open a login flow. It's consumed once by `auth login`; after that the saved token does all the work and you can even delete the JSON.
 
-**Steps:**
+### Option A: OAuth — act as yourself (recommended)
 
-1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials): enable **Google Sheets API** + **Google Drive API** → **Create Credentials → OAuth client ID → Desktop app** → download the JSON.
-2. Hand the file to `auth login` — any ONE of these three ways:
+**1.** In [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+
+- Enable **Google Sheets API** and **Google Drive API**
+- **Create Credentials → OAuth client ID → Desktop app** → download the JSON
+
+**2.** Hand the file to `auth login` — any **one** of these three ways:
 
 ```bash
 # (a) zero file moves — point at the download directly:
@@ -80,25 +108,26 @@ npx sheetcraft-mcp@latest auth login
 npx sheetcraft-mcp@latest auth login
 ```
 
-3. Browser opens → consent → done. Check with:
+**3.** Browser opens → consent → done. Verify:
 
 ```bash
 npx sheetcraft-mcp@latest auth status
 ```
 
-Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (0600) and auto-refresh —
-after login you can even delete the downloaded JSON. Your spreadsheets, your ownership —
-`create_spreadsheet` works. Works the same on Linux, macOS and Windows (paths resolve via
-your home directory).
+Tokens persist at `~/.config/sheetcraft-mcp/oauth-tokens.json` (permissions 0600) and auto-refresh on every use.
 
-> **Consent-screen gotchas** (your app is in "Testing" mode until Google verifies it):
-> - *"Access blocked … has not completed the Google verification process / Error 403: access_denied"* — your Google account isn't a **test user**. Fix: Cloud Console → **APIs & Services → OAuth consent screen → Audience/Test users → Add users** → add the account you're logging in with. Or click **Advanced → Go to <app> (unsafe)** if that option appears.
-> - *"unverified app" warning screen* — expected for your own test app: **Advanced → Go to app (unsafe) → Allow**.
-> - Don't want any of this? Skip OAuth entirely and use a **service account** (Option B below).
+Useful auth commands:
+
+```bash
+npx sheetcraft-mcp@latest auth status   # which mode is active, which email
+npx sheetcraft-mcp@latest auth logout   # delete stored tokens
+```
+
+**Switching accounts:** run `auth logout` first — `auth login` refuses to overwrite an existing session otherwise (pass `--force` to override).
 
 ### Option B: Service account — edit-only on shared files
 
-1. Create a service account + JSON key in Cloud Console, enable Sheets API.
+1. In Cloud Console: create a **service account**, create a **JSON key** for it, enable the **Sheets API**.
 2. Point the server at the key:
 
 ```bash
@@ -106,13 +135,28 @@ export GOOGLE_SERVICE_ACCOUNT_CREDENTIALS="$(cat service-account.json)"
 # or: export GOOGLE_SERVICE_ACCOUNT_FILE=/path/to/key.json
 ```
 
-3. **Share spreadsheets with the SA's email** (like any collaborator) — it can read/edit but **cannot create** files (Google gives service accounts a 0-byte storage quota; use OAuth for that).
+3. **Share spreadsheets with the SA's email** like any collaborator. It can read and edit but cannot create files — use OAuth for that.
 
-### Auth resolution
+### Which mode wins
 
-`SHEETS_AUTH_MODE=oauth|service-account` forces a mode; otherwise SA env credentials win, then stored OAuth tokens.
+If both are configured: `SHEETS_AUTH_MODE=oauth|service-account` forces a mode; otherwise service-account env credentials win, then stored OAuth tokens.
 
-## Use with OpenCode
+### Consent-screen gotchas
+
+Your OAuth app stays in **"Testing" mode** until Google verifies it. Expect these two screens:
+
+| What you see | What it means | Fix |
+|---|---|---|
+| *"Access blocked … Error 403: access_denied"* | The Google account you're logging in with is not a **test user** of your own app | Cloud Console → **APIs & Services → OAuth consent screen → Audience / Test users → Add users** → add that account. Takes effect immediately. |
+| *"Google hasn't verified this app"* warning | Normal for your own unverified app | **Advanced → Go to \<app name\> (unsafe) → Allow** |
+
+If you'd rather not touch the consent screen at all, use a [service account](#option-b-service-account--edit-only-on-shared-files).
+
+---
+
+## MCP configuration
+
+### OpenCode
 
 ```jsonc
 // opencode.json
@@ -130,15 +174,13 @@ export GOOGLE_SERVICE_ACCOUNT_CREDENTIALS="$(cat service-account.json)"
 }
 ```
 
-Tools appear as `sheets_get_values`, `sheets_update_values`, etc. OAuth login done via the CLI is picked up automatically (same token store).
-
-Gate destructive tools in agent config:
+Gate destructive tools in agent config so the agent asks before acting:
 
 ```jsonc
 { "tools": { "sheets_delete_sheet": "ask", "sheets_batch_update": "ask", "sheets_trash_spreadsheet": "ask" } }
 ```
 
-## Use with Claude Desktop / any MCP client
+### Claude Desktop / any standard MCP client
 
 ```json
 {
@@ -146,82 +188,196 @@ Gate destructive tools in agent config:
     "sheets": {
       "command": "npx",
       "args": ["-y", "sheetcraft-mcp@latest"],
-      "env": { "SHEETS_TOOLSETS": "core,drive,formatting,charts" }
+      "env": { "SHEETS_TOOLSETS": "core,drive" }
     }
   }
 }
 ```
 
-## The CLI
+Notes for all clients:
+
+- OAuth login done via the CLI is picked up automatically (same token store) — configure the server first, log in after, no restart dance needed.
+- The tool **prefix** comes from your config key: `"sheets"` → `sheets_get_values`, `sheets_update_values`, …
+- Credentials are never put in this config. The server reads them from `~/.config/sheetcraft-mcp/` (OAuth) or env vars (service account).
+
+---
+
+## Toolsets
+
+32 tools ship in 6 opt-in groups. Select with the `SHEETS_TOOLSETS` environment variable — **default is `core,drive`**.
+
+| Toolset | Tools | Register when the agent needs to… |
+|---|---|---|
+| `core` *(default)* | 13 | Read/write values, manage sheets/tabs, find & replace |
+| `drive` *(default)* | 7 | Create/copy/search/share/trash/export spreadsheets |
+| `formatting` | 5 | Style cells, merge, freeze, conditional formatting |
+| `charts` | 3 | Create/edit/delete embedded charts |
+| `pivot` | 2 | Build pivot tables (see [limitations](#known-limitations)) |
+| `power` | 2 | Raw `batchUpdate` escape hatch + range sorting |
+| `all` | 32 | Everything |
 
 ```bash
-npx sheetcraft-mcp@latest list                        # all 32 ops by toolset
-npx sheetcraft-mcp@latest help get_values             # one op's parameters
+SHEETS_TOOLSETS=core                     # 13 tools  (~4K tokens of schema)
+SHEETS_TOOLSETS=core,drive               # 20 tools  (default)
+SHEETS_TOOLSETS=core,drive,formatting,charts
+SHEETS_TOOLSETS=all                      # 32 tools  (~9.4K tokens of schema)
+```
+
+Unknown names hard-fail at startup. Keep the list small — every tool's schema costs standing tokens in every conversation.
+
+---
+
+## Tool catalog
+
+Every data operation takes a `spreadsheetId` (bare ID, or paste a full URL — it's parsed), and sheet parameters accept a quoted name (`'My Sheet'`) or `gid:N`. Every write echoes `updatedRange`/`updatedCells`. Every read is capped (default 5,000 cells) with an explicit truncation notice.
+
+### core — values and sheets (13)
+
+| Tool | What it does | Key parameters / defaults |
+|---|---|---|
+| `get_values` | Read a range. Returns **CSV by default** (most token-efficient) | `format`: `csv` · `tsv` · `grid` (2D JSON array) · `records` (header-joined objects) |
+| `batch_get_values` | Read multiple ranges in one call | `ranges` — each result labeled with its A1 |
+| `update_values` | Write a 2D array to a range | `input`: `USER_ENTERED` (default — strings starting with `=` become formulas, dates parse) or `RAW` |
+| `batch_update_values` | Write multiple ranges in **one API call** (one quota unit) | prefer over several `update_values` calls |
+| `append_rows` | Append rows below the existing table (auto-detected) | default `INSERT_ROWS` — **never overwrites** rows below the table |
+| `clear_values` | Clear values, keep formatting | destructive |
+| `get_spreadsheet_info` | List tabs with titles, gids, dimensions, frozen state | call this first when all you have is a URL |
+| `add_sheet` / `delete_sheet` / `duplicate_sheet` / `rename_sheet` | Tab management | delete is destructive |
+| `insert_delete_dimensions` | Insert/delete rows or columns | indices are **0-based** (0 = first row/column) |
+| `find_replace` | Find & replace across a sheet, range, or whole spreadsheet | `replacement` is required (omitting it would erase matches) |
+
+### drive — file lifecycle (7)
+
+| Tool | What it does | Notes |
+|---|---|---|
+| `create_spreadsheet` | New empty spreadsheet | owned by whoever is logged in; in SA mode pass `shareWith` or it's invisible to humans |
+| `copy_spreadsheet` | Copy data, formulas, formatting (not sharing) | |
+| `find_spreadsheets` | Search by name → candidate IDs, never auto-selected | sees files the authenticated identity can access |
+| `share_spreadsheet` | Grant an account access | in SA mode, required after `create_spreadsheet` |
+| `trash_spreadsheet` | Move to Drive trash (restorable) | `permanent=true` bypasses trash — cannot be undone |
+| `export_spreadsheet` | Download whole file as xlsx / pdf / ods | per-sheet CSV: use `get_values` instead |
+| `resolve_target` | Parse a URL → `spreadsheetId` + `gid` | also accepts bare IDs |
+
+### formatting (5)
+
+| Tool | What it does | Notes |
+|---|---|---|
+| `format_cells` | Bold/italic/strikethrough, font size/color, background, number format, alignment, wrapping | only provided properties change; colors are `#RRGGBB` |
+| `merge_cells` | Merge a range (`ALL` / `COLUMNS` / `ROWS`) | `unmerge=true` to undo |
+| `freeze_rows_columns` | Sticky headers | pass `0` to unfreeze |
+| `conditional_format` | Add/delete highlight rules | use `get_formatting` to find rule indices |
+| `get_formatting` | Read formatting as **run-length-encoded** ranges + merges + rules | far cheaper than reading the full grid |
+
+### charts (3)
+
+| Tool | What it does | Notes |
+|---|---|---|
+| `create_chart` | Embedded chart: `COLUMN`, `BAR`, `LINE`, `AREA`, `SCATTER`, `COMBO`, `STEPPED_AREA` | from a domain range + series ranges; returns `chartId` |
+| `update_chart` | Change type, ranges, title, legend, stacking | patch semantics — fetch, merge, send |
+| `delete_chart` | Delete by id | |
+
+### pivot (2) ⚠️
+
+| Tool | What it does | Notes |
+|---|---|---|
+| `create_pivot` | Grouped summaries (SUM/COUNT/AVERAGE/…) by row/column fields | **Google's API silently drops pivot writes** (verified; see limitations). The tool verifies persistence and warns honestly when the write didn't take |
+| `delete_pivot` | Clear the cell holding the definition | |
+
+### power (2)
+
+| Tool | What it does | Notes |
+|---|---|---|
+| `batch_update` | Raw `spreadsheets.batchUpdate` — pass the API's `requests` array verbatim | covers banding, named ranges, protection, data validation, tables, slicers, and more; atomic (one bad request aborts the batch) |
+| `sort_range` | Sort rows by one or more columns | **the entire range sorts in place — exclude headers from the range** |
+
+---
+
+## The CLI
+
+The CLI runs the same 32 operations as subcommands — for scripting, piping, and bulk work. Same auth, same errors; any failure prints the same teaching message the MCP tools return and exits **1**.
+
+```bash
+# discovery
+npx sheetcraft-mcp@latest list                  # all 32 ops by toolset
+npx sheetcraft-mcp@latest help get_values       # one op's full JSON schema
+
+# operations — args as key=value pairs
 npx sheetcraft-mcp@latest resolve_target url="https://docs.google.com/spreadsheets/d/…/edit"
 npx sheetcraft-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10"
 npx sheetcraft-mcp@latest get_values spreadsheetId=<id> range="'My Sheet'!A1:D10" format=records
+
+# structured output and stdin JSON (for 2D arrays with quotes/formulas)
+npx sheetcraft-mcp@latest get_values spreadsheetId=<id> range=A:D --json | jq .
 npx sheetcraft-mcp@latest append_rows spreadsheetId=<id> sheet=Data --stdin-json < rows.json
 ```
 
-Same core, same auth, same errors — exit code 1 with a teaching message on failure.
+| Flag | Purpose |
+|---|---|
+| `--json` | Force JSON output (reads print compact text by default) |
+| `--stdin-json` | Read the whole args object as JSON from stdin — the safe way to pass rows containing quotes, apostrophes, newlines, or formulas |
 
-### Agent skill for the CLI
+Auth: `sheets auth login [--client <path>]`, `sheets auth status`, `sheets auth logout`.
+Every op is also available as `sheets <op> …` when installed globally.
 
-If your agent supports skills (OpenCode, Claude Code), install the bundled one — it teaches
-the CLI conventions (quoting, stdin JSON, exit codes, pitfalls) without trial and error:
+Reads compose with standard tooling; writes are better done through MCP tools (the agent UI handles quoting and permission gating for you).
+
+### Agent skill
+
+The npm package bundles a skill that teaches agents the CLI conventions (quoting, stdin JSON, exit codes, pitfalls) without trial and error:
 
 ```bash
-# Claude Code — symlink into the skills directory:
+# Claude Code:
 ln -s "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
       ~/.claude/skills/managing-google-sheets
 
-# OpenCode — copy into the skill directory (`skill`, singular):
+# OpenCode (`skill`, singular):
 cp -r "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
       ~/.config/opencode/skill/managing-google-sheets
 ```
 
-The skill ships inside the npm package (`skills/managing-google-sheets/SKILL.md`) — point
-your skill loader at the installed package path.
+---
 
-## Tool catalog (32 tools, 6 toolsets)
+## Environment variables
 
-| Toolset | Tools |
+| Variable | Purpose | Default |
+|---|---|---|
+| `SHEETS_TOOLSETS` | Which toolsets register: `core`, `drive`, `formatting`, `charts`, `pivot`, `power`, `all`, or a comma list | `core,drive` |
+| `GOOGLE_SERVICE_ACCOUNT_CREDENTIALS` | Service-account key JSON (raw) | — |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | Service-account key JSON (path) | — |
+| `SHEETS_AUTH_MODE` | Force `oauth` or `service-account` | auto-resolved |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth client values (alternative to the client JSON file) | — |
+| `SHEETS_OAUTH_CLIENT_FILE` | Custom path to the OAuth client JSON | `~/.config/sheetcraft-mcp/oauth-client.json` |
+| `GOOGLE_OAUTH_TOKEN_FILE` | Custom token-store path | `~/.config/sheetcraft-mcp/oauth-tokens.json` |
+| `SHEETS_MAX_CELLS` | Read cap per call | `5000` |
+| `SHEETS_RETRY_ATTEMPTS` / `SHEETS_RETRY_BASE_MS` / `SHEETS_RETRY_MAX_MS` | Retry tuning for 429/5xx/network errors (exponential backoff + jitter) | `3` / `300` / `8000` |
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
 |---|---|
-| **core** (13) | `get_values` · `batch_get_values` · `update_values` · `batch_update_values` · `append_rows` · `clear_values` · `get_spreadsheet_info` · `add_sheet` · `delete_sheet` · `duplicate_sheet` · `rename_sheet` · `insert_delete_dimensions` · `find_replace` |
-| **drive** (7) | `create_spreadsheet` · `copy_spreadsheet` · `find_spreadsheets` · `share_spreadsheet` · `trash_spreadsheet` · `export_spreadsheet` · `resolve_target` |
-| **formatting** (5) | `format_cells` · `merge_cells` · `freeze_rows_columns` · `conditional_format` · `get_formatting` (run-length-encoded, very compact) |
-| **charts** (3) | `create_chart` · `update_chart` · `delete_chart` |
-| **pivot** (2) | `create_pivot` · `delete_pivot` |
-| **power** (2) | `batch_update` (raw escape hatch for all ~70 batchUpdate request types) · `sort_range` |
-
-Select with `SHEETS_TOOLSETS` — default `core,drive` (20 tools); `all` for all 32; or any
-comma list. Unknown names hard-fail at startup.
-
-## Design notes for agent reliability
-
-- **ID-first**: every op takes `spreadsheetId` (accepts a full URL — parsed). Sheet params accept `'Name'` or `gid:N`.
-- **A1 errors teach**: `Sheet "Data 2" not found. Sheets: "Sheet1"(gid:0), "Data"(gid:7). Quote names with spaces: 'My Sheet'!A1:B2.`
-- **Reads capped**: `SHEETS_MAX_CELLS` (default 5000) + truncation notice with next steps.
-- **Batching encouraged**: `batch_update_values` / `batch_update` = one API call per Google's quota.
-- **Cell contents are data, not instructions**: content is never echoed into error messages or prompts.
-
-## Environment reference
-
-| Var | Purpose |
-|---|---|
-| `SHEETS_TOOLSETS` | Default `core,drive`; also `core`, `drive`, `formatting`, `charts`, `pivot`, `power`, `all`, or comma list |
-| `GOOGLE_SERVICE_ACCOUNT_CREDENTIALS` / `_FILE` | SA key JSON (raw) / path |
-| `SHEETS_AUTH_MODE` | Force `oauth` or `service-account` |
-| `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | Alternative to oauth-client.json |
-| `GOOGLE_OAUTH_TOKEN_FILE` / `SHEETS_OAUTH_CLIENT_FILE` | Custom token/client paths |
-| `SHEETS_MAX_CELLS` | Read cap per call (default 5000) |
-| `SHEETS_RETRY_ATTEMPTS` / `_BASE_MS` / `_MAX_MS` | Retry tuning (default 3, 300ms, 8s) |
+| Tool call returns *"No credentials configured"* | Nothing is set up yet. Run `npx sheetcraft-mcp@latest auth login`, or set service-account env vars. The message lists both options verbatim |
+| `auth login` → browser → *"Access blocked / 403 access_denied"* | Your account isn't a test user of your own OAuth app → add it under **OAuth consent screen → Test users** (see [consent-screen gotchas](#consent-screen-gotchas)) |
+| *"Already logged in as …"* when switching accounts | Run `auth logout` first, or pass `--force` |
+| `Sheet "Data 2" not found. Sheets: "Sheet1"(gid:0), …` | Teaching error — quote names with spaces: `'My Sheet'!A1:B2` |
+| Write landed in the wrong place | `append_rows` inserts below the table (never overwrites); `update_values` writes exactly the range you name — check `updatedRange` in the echo |
+| `find_replace` erased text | `replacement` was empty/omitted. It's required for this reason |
+| Sorting scrambled headers | `sort_range` sorts the whole range — exclude the header row from the range |
 
 ## Known limitations
 
-- **Pivot tables via the API are unreliable** — Google's API accepts the write but silently drops the definition (verified 2026-08-28 against Google's own documented request shape). `create_pivot` verifies persistence and warns honestly; for summaries, prefer `get_values` + `update_values`.
-- **Service accounts cannot create files** (Google policy, 0-byte quota) — use OAuth mode for `create_spreadsheet`/`copy_spreadsheet`.
-- **Drive CSV export is first-sheet-only** — use `get_values` for per-sheet CSV.
+- **Pivot tables via the API are unreliable** — Google's API accepts the write but silently drops the definition (verified 2026-08-28 against Google's own documented request shape). `create_pivot` verifies persistence and warns when the write didn't take. For summaries, prefer `get_values` + `update_values`.
+- **Service accounts cannot create files** — Google policy (0-byte storage quota). Use OAuth for `create_spreadsheet` / `copy_spreadsheet`.
+- **Drive CSV export covers only the first sheet** — use `get_values` for per-sheet CSV.
+- **`update_values` writes in ROWS orientation** — arrays are row-major.
+
+## Design notes for agent reliability
+
+- **ID-first** — every op takes `spreadsheetId` (full URLs parsed); sheet params accept `'Name'` or `gid:N`.
+- **Errors teach** — bad ranges quote an example and list available sheets; rate-limit errors say that retries already happened.
+- **Reads are capped** — `SHEETS_MAX_CELLS` with an explicit notice telling the model how to get the rest.
+- **Batching is encouraged** — `batch_update_values` / `batch_update` = one API call per quota unit.
+- **Cell contents are data, not instructions** — sheet content is never echoed into error messages or prompts.
+- **Retry + backoff built in** — 429/5xx/network errors retry with exponential backoff + jitter before surfacing.
 
 ## License
 
