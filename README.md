@@ -368,7 +368,8 @@ cp -r "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
 
 ## Known limitations
 
-- **Pivot tables via the API are unreliable** — Google's API accepts the write but silently drops the definition (verified 2026-08-28 against Google's own documented request shape). `create_pivot` verifies persistence and warns when the write didn't take. For summaries, prefer `get_values` + `update_values`.
+- **Pivot tables via the API are unreliable** — Google's API accepts the write but silently drops the definition (verified 2026-08-28, re-verified 2026-08-29 against Google's own documented request shape). `create_pivot` verifies persistence and warns when the write didn't take. For summaries, prefer `get_values` + `update_values`.
+- **Cells in Google Tables (typed columns) reject data validation** — if a tab is a Google Table (column chips with types), `set_data_validation` on its columns fails with *"This operation is not allowed on cells in typed columns"* (Google blocks it in the UI too). Use the table's column-chip menu in the UI instead, or convert the table to a normal range first.
 - **Service accounts cannot create files** — Google policy (0-byte storage quota). Use OAuth for `create_spreadsheet` / `copy_spreadsheet`.
 - **Drive CSV export covers only the first sheet** — use `get_values` for per-sheet CSV.
 - **`update_values` writes in ROWS orientation** — arrays are row-major.
