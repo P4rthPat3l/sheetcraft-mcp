@@ -16,6 +16,7 @@ import {
   insertDeleteDimensionsOp,
   moveDimensionOp,
   findReplaceOp,
+  setDataValidationOp,
 } from './structure.js';
 import {
   createChartOp,
@@ -64,6 +65,7 @@ export const ALL_OPS: readonly Op[] = [
   insertDeleteDimensionsOp,
   moveDimensionOp,
   findReplaceOp,
+  setDataValidationOp,
   // drive — file lifecycle
   createSpreadsheetOp,
   copySpreadsheetOp,

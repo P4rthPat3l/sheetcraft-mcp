@@ -10,6 +10,7 @@ description: Use when reading, writing, formatting, charting, or organizing data
 
 - **Never read or copy credentials** (`~/.config/sheetcraft-mcp/*`, token stores, service-account keys) and never hand-roll Google API calls in scripts. Everything the API can do is exposed as a tool; if a parameter seems missing, your tool list may be stale.
 - **Tool list is per-session.** If a parameter you remember as missing suddenly matters, re-check the tool's current schema (`help <op>` / tools/list) instead of assuming the old behavior — the server may have been updated.
+- **Never print credentials into chat output.** Don't `cat`, `env | grep`, or otherwise display API keys, client secrets, or token files — secrets in the transcript are compromised secrets and must be rotated. If a task needs a credential check, verify existence (`ls`) and say so, never the contents.
 - **Bypassing the MCP to call Google APIs directly** (scripts using stored tokens) is out of bounds even when it seems faster. If a tool genuinely can't do something, say so instead of working around it.
  via the `sheets` CLI
 

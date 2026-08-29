@@ -330,4 +330,164 @@ export function hexToRgbColor(hex: string): { red: number; green: number; blue: 
   return { red: ((n >> 16) & 255) / 255, green: ((n >> 8) & 255) / 255, blue: (n & 255) / 255 };
 }
 
+// ---------------------------------------------------------------------------
+// set_data_validation — dropdowns and cell constraints (core toolset)
+// Live-probed 2026-08-29: ONE_OF_RANGE requires a "=Range" formula pointing at
+// an EXISTING sheet; ONE_OF_LIST takes literals; deleting = omit the rule.
+
+const DATA_VALIDATION_TYPES = [
+  'ONE_OF_LIST', 'ONE_OF_RANGE', 'NUMBER_BETWEEN', 'NUMBER_NOT_BETWEEN',
+  'NUMBER_EQUAL', 'NUMBER_GREATER', 'NUMBER_GREATER_THAN_OR_EQ', 'NUMBER_LESS',
+  'NUMBER_LESS_THAN_OR_EQ', 'TEXT_EQUAL_TO', 'TEXT_NOT_EQUAL_TO', 'TEXT_CONTAINS',
+  'TEXT_NOT_CONTAINS', 'TEXT_STARTS_WITH', 'TEXT_ENDS_WITH', 'TEXT_IS_EMAIL',
+  'TEXT_IS_URL', 'DATE_IS_VALID', 'BOOLEAN',
+] as const;
+
+type DataValidationType = (typeof DATA_VALIDATION_TYPES)[number];
+
+const TYPES_NEEDING_VALUES: ReadonlySet<DataValidationType> = new Set([
+  'ONE_OF_LIST', 'ONE_OF_RANGE', 'NUMBER_BETWEEN', 'NUMBER_NOT_BETWEEN',
+  'NUMBER_EQUAL', 'NUMBER_GREATER', 'NUMBER_GREATER_THAN_OR_EQ', 'NUMBER_LESS',
+  'NUMBER_LESS_THAN_OR_EQ', 'TEXT_EQUAL_TO', 'TEXT_NOT_EQUAL_TO', 'TEXT_CONTAINS',
+  'TEXT_NOT_CONTAINS', 'TEXT_STARTS_WITH', 'TEXT_ENDS_WITH',
+]);
+
+const NUMBER_TYPES = new Set<DataValidationType>([
+  'NUMBER_BETWEEN', 'NUMBER_NOT_BETWEEN', 'NUMBER_EQUAL', 'NUMBER_GREATER',
+  'NUMBER_GREATER_THAN_OR_EQ', 'NUMBER_LESS', 'NUMBER_LESS_THAN_OR_EQ',
+]);
+
+const setDataValidationSchema = z.object({
+  spreadsheetId: spreadsheetIdParam,
+  range: z.string().min(1).describe("Target range, e.g. 'Sheet 1'!E2:E100 (include the sheet prefix; without one the first sheet is used)."),
+  type: z.enum(DATA_VALIDATION_TYPES).optional().describe(
+    "Validation rule: dropdowns use ONE_OF_LIST (values = literal options) or ONE_OF_RANGE (values = ['=Sheet!A1:A10'] pointing at an option list). BOOLEAN (a checkbox) needs no values.",
+  ),
+  values: z
+    .array(z.union([z.string(), z.number()]))
+    .optional()
+    .describe(
+      "Rule values. ONE_OF_LIST: the option literals, e.g. [\"Active\",\"Disabled\"]. ONE_OF_RANGE: exactly one '=Sheet!A1:A10' ref. Comparison types (NUMBER_BETWEEN, TEXT_CONTAINS, …): one value (two for *_BETWEEN).",
+    ),
+  strict: z.boolean().default(true).describe('true (default) = reject invalid input with a warning; false = accept with a warning marker.'),
+  showDropdown: z.boolean().default(true).describe('Show the dropdown UI for ONE_OF_* rules (default true).'),
+  clearValidation: z.boolean().default(false).describe('Remove validation from the range instead of setting a rule.'),
+});
+
 export { quoteSheetName };
+export const setDataValidationOp: Op = {
+  name: 'set_data_validation',
+  group: 'core',
+  description:
+    'Apply data validation (dropdowns, checkboxes, value constraints) to a range — ONE_OF_LIST/ONE_OF_RANGE dropdowns, BOOLEAN checkboxes, number/text comparisons. clearValidation=true removes rules.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  inputSchema: zodSchema(setDataValidationSchema),
+  run: async (args, svc) => {
+    const spreadsheetId = parseSpreadsheetId(String(args.spreadsheetId));
+    const scope = makeSheetScope(svc, spreadsheetId);
+
+    // Arg-shape checks before any API call so they fire even when offline.
+    if (args.clearValidation) {
+      if (args.type || args.values) {
+        opError('Pass EITHER clearValidation=true OR type/values — not both. clearValidation removes the rule.');
+      }
+      const clearGrid = await scope.toGrid(String(args.range));
+      await executeWithRetry(() =>
+        svc.sheetsApi.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests: [{ setDataValidation: { range: clearGrid } }] },
+        }),
+      );
+      return { text: `Cleared data validation from ${String(args.range)}.`, structured: { cleared: true } } satisfies OpResult;
+    }
+
+    const type = args.type as DataValidationType | undefined;
+    if (!type) {
+      opError(
+        `Missing "type" — what rule should ${String(args.range)} enforce? Dropdowns: ONE_OF_LIST with values=["Active","Disabled"], or ONE_OF_RANGE with values=["='Options'!A1:A10"]. Simple flag: BOOLEAN (checkbox). Or clearValidation=true to remove rules. Valid types: ${DATA_VALIDATION_TYPES.join(', ')}.`,
+      );
+    }
+    const rawValues = (args.values ?? []) as Array<string | number>;
+    if (TYPES_NEEDING_VALUES.has(type!) && rawValues.length === 0) {
+      opError(
+        `Type ${type} requires "values". ${type === 'ONE_OF_LIST' ? 'e.g. values=["Active","Disabled","Pending"]' : type === 'ONE_OF_RANGE' ? 'e.g. values=["=Options!A1:A10"] — the ref must point at an existing sheet holding the options' : 'e.g. the value(s) to compare against'}.`,
+      );
+    }
+    if (!TYPES_NEEDING_VALUES.has(type!) && rawValues.length > 0) {
+      opError(`Type ${type} takes no "values" — remove the parameter (it would be silently ignored by the API).`);
+    }
+    if (NUMBER_TYPES.has(type!) && rawValues.some((v) => typeof v !== 'number')) {
+      opError(`Type ${type} needs numeric values (got a string). Pass numbers without quotes, e.g. values=[1, 100].`);
+    }
+    if (type === 'ONE_OF_LIST' && rawValues.length > 100) {
+      opError('ONE_OF_LIST accepts at most 100 literal options. Put longer lists in cells and use ONE_OF_RANGE instead, e.g. values=["=\'Option Lists\'!A1:A120"].');
+    }
+    if (type === 'ONE_OF_RANGE' && rawValues.length !== 1) {
+      opError('ONE_OF_RANGE takes exactly one value: the "=Sheet!A1:A10" reference to the option list.');
+    }
+
+    let conditionValues: Array<{ userEnteredValue: string }> = [];
+    if (type === 'ONE_OF_LIST') {
+      conditionValues = rawValues.map((v) => ({ userEnteredValue: String(v) }));
+    } else if (type === 'ONE_OF_RANGE') {
+      const ref = String(rawValues[0]).trim();
+      if (!ref.startsWith('=')) {
+        opError(
+          `ONE_OF_RANGE values must be a formula ref starting with "=", e.g. values=["='${ref}'"]. (Live-probed: a bare range is rejected by Google.)`,
+        );
+      }
+      // The referenced sheet must exist — Google's raw 400 for a bad ref teaches nothing.
+      const refBody = ref.slice(1);
+      const { sheet: refSheet } = parseFullRange(refBody);
+      if (refSheet) {
+        const existing = (await scope.sheets()).map((s) => s.title);
+        if (!existing.includes(refSheet)) {
+          opError(
+            `ONE_OF_RANGE references sheet "${refSheet}" which does not exist. Sheets: ${existing.map((t) => `"${t}"`).join(', ')}. Create it first (add_sheet), then reference its option cells.`,
+          );
+        }
+      } else {
+        opError(
+          `ONE_OF_RANGE ref "${ref}" must name its sheet, e.g. "='Options'!A1:A10". A range without a sheet prefix would silently point at the wrong tab.`,
+        );
+      }
+      conditionValues = [{ userEnteredValue: ref }];
+    } else {
+      conditionValues = rawValues.map((v) => ({ userEnteredValue: String(v) }));
+    }
+
+    const grid = await scope.toGrid(String(args.range));
+    const showCustomUi = type === 'ONE_OF_LIST' || type === 'ONE_OF_RANGE' ? args.showDropdown !== false : undefined;
+    await executeWithRetry(() =>
+      svc.sheetsApi.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              setDataValidation: {
+                range: grid,
+                rule: {
+                  condition: { type, values: conditionValues },
+                  showCustomUi,
+                  strict: args.strict !== false,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    const detail =
+      type === 'ONE_OF_LIST'
+        ? `options: ${rawValues.slice(0, 8).map(String).join(' | ')}${rawValues.length > 8 ? ` (+${rawValues.length - 8} more)` : ''}`
+        : type === 'ONE_OF_RANGE'
+          ? `options from ${String(rawValues[0])}`
+          : type === 'BOOLEAN'
+            ? 'checkbox'
+            : `rule on ${conditionValues.map((v) => v.userEnteredValue).join(', ')}`;
+    return {
+      text: `Applied ${type} validation to ${String(args.range)} (${detail}). Invalid input is ${args.strict !== false ? 'rejected' : 'warned but accepted'}.`,
+      structured: { type, range: String(args.range), applied: true },
+    } satisfies OpResult;
+  },
+};
