@@ -188,7 +188,14 @@ export function splitSheetPrefix(input: string): { sheet: string | null; range: 
   if (bang === -1) return { sheet: null, range: s };
   const sheet = s.slice(0, bang);
   if (/\s/.test(sheet)) {
-    throw new A1Error(`Sheet name "${sheet}" contains spaces — single-quote it: '${sheet}'!A1:B2`);
+    // Auto-repair: agents forget the quoting convention constantly and a hard
+    // error wastes a round trip. Observed failure shapes:
+    //   Final Proposed structure!A1:Z3   (no quotes at all)
+    //   Email Audit'!A38:M45             (stray trailing quote)
+    //   Jon' Data!A1                     (quote inside the name → double it)
+    const stripped = sheet.endsWith("'") ? sheet.slice(0, -1) : sheet;
+    const quoted = `'${stripped.replace(/'/g, "''")}'!${s.slice(bang + 1)}`;
+    return splitSheetPrefix(quoted);
   }
   return { sheet, range: s.slice(bang + 1) };
 }

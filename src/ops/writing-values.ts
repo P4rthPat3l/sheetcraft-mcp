@@ -24,6 +24,33 @@ function rectangularize(rows: unknown[][]): (string | number | boolean | null)[]
   });
 }
 
+/**
+ * Agents occasionally serialize an array param as a JSON string (observed with
+ * smaller models: `writes: "[{...}]"` → opaque "Expected array, received string").
+ * If it parses to the right shape, accept it; if it parses to the wrong shape,
+ * teach; if it doesn't parse at all, surface the JSON error.
+ */
+export function arrayParam(value: unknown, name: string): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(value);
+    } catch (e) {
+      opError(
+        `"${name}" is a string but not valid JSON (${e instanceof Error ? e.message : String(e)}). Pass a real array, e.g. [{"range":"A1:B2","values":[["a"]]}].`,
+      );
+    }
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed !== null && typeof parsed === 'object') {
+      opError(
+        `"${name}" parsed as an object, expected an array. Check the shape — e.g. for writes: [{"range":"A1:B2","values":[["a"]]}].`,
+      );
+    }
+  }
+  opError(`"${name}" must be an array (got ${value === null ? 'null' : typeof value}).`);
+}
+
 /** Coerce JSON cell values to the API's ValueRange (numbers/bools stay typed; null/undefined → ""). */
 function toRawValues(input: unknown): { values: unknown[][]; majorDimension: 'ROWS' | 'COLUMNS' } {
   if (!Array.isArray(input) || input.length === 0) {
@@ -83,7 +110,7 @@ export const updateValuesOp: Op = {
     const range = String(args.range);
     const scope = makeSheetScope(svc, spreadsheetId);
     const concrete = await scope.toA1(range);
-    const { values } = toRawValues(args.values);
+    const { values } = toRawValues(arrayParam(args.values, 'values'));
     const { result } = await executeWithRetry(() =>
       svc.sheetsApi.spreadsheets.values.update({
         spreadsheetId,
@@ -128,7 +155,7 @@ export const appendRowsOp: Op = {
     const sheet = String(args.sheet);
     const gid = await scope.resolveSheet(sheet);
     const info = (await scope.sheets()).find((s) => s.sheetId === gid);
-    const rows = (args.rows as unknown[][]) ?? [];
+    const rows = arrayParam(args.rows, 'rows') as unknown[][];
     const { values } = toRawValues(rows);
     const { result } = await executeWithRetry(() =>
       svc.sheetsApi.spreadsheets.values.append({
@@ -170,7 +197,7 @@ export const batchUpdateValuesOp: Op = {
   run: async (args, svc) => {
     const spreadsheetId = parseSpreadsheetId(String(args.spreadsheetId));
     const scope = makeSheetScope(svc, spreadsheetId);
-    const writes = (args.writes as Array<{ range: string; values: unknown[][] }>) ?? [];
+    const writes = arrayParam(args.writes, 'writes') as Array<{ range: string; values: unknown[][] }>;
     const data: sheets_v4.Schema$ValueRange[] = [];
     for (const w of writes) {
       data.push({ range: await scope.toA1(String(w.range)), values: toRawValues(w.values).values, majorDimension: 'ROWS' });
@@ -208,7 +235,7 @@ export const batchGetValuesOp: Op = {
   run: async (args, svc) => {
     const spreadsheetId = parseSpreadsheetId(String(args.spreadsheetId));
     const scope = makeSheetScope(svc, spreadsheetId);
-    const ranges = (args.ranges as string[]) ?? [];
+    const ranges = arrayParam(args.ranges, 'ranges') as string[];
     const concrete: string[] = [];
     for (const r of ranges) concrete.push(await scope.toA1(String(r)));
     const render = (args.render ?? 'formatted') as 'formatted' | 'unformatted' | 'formula';

@@ -69,7 +69,23 @@ test('splitSheetPrefix: unquoted, quoted, escaped quote, whole-sheet', () => {
   assert.deepEqual(splitSheetPrefix('A1:B2'), { sheet: null, range: 'A1:B2' });
   assert.deepEqual(splitSheetPrefix("'My Data'"), { sheet: 'My Data', range: '' });
   assert.throws(() => splitSheetPrefix("'Unterminated!A1"), A1Error);
-  assert.throws(() => splitSheetPrefix('My Sheet!A1'), A1Error); // spaces need quotes
+});
+
+test('splitSheetPrefix auto-repairs unquoted names with spaces (AC: agent quote slips never hard-fail)', () => {
+  // no quotes at all
+  assert.deepEqual(splitSheetPrefix('Final Proposed structure!A1:Z3'), {
+    sheet: 'Final Proposed structure',
+    range: 'A1:Z3',
+  });
+  // one stray trailing quote (observed in the wild)
+  assert.deepEqual(splitSheetPrefix("Email Audit'!A38:M45"), { sheet: 'Email Audit', range: 'A38:M45' });
+  // auto-repair composes with whole-sheet and escaped quotes
+  assert.deepEqual(splitSheetPrefix('My Sheet'), { sheet: null, range: 'My Sheet' });
+  assert.deepEqual(splitSheetPrefix("Jon' Data!A1"), { sheet: "Jon' Data", range: 'A1' });
+  // correct input untouched
+  assert.deepEqual(splitSheetPrefix("'My Sheet'!A1"), { sheet: 'My Sheet', range: 'A1' });
+  // a bad RANGE after a repairable name is the range parser's job, not ours
+  assert.deepEqual(splitSheetPrefix('Bad Name!A]1'), { sheet: 'Bad Name', range: 'A]1' });
 });
 
 test('parseFullRange: whole sheet via bare name or *', () => {
