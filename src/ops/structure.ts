@@ -82,6 +82,7 @@ const addSheetSchema = z.object({
   rows: z.number().int().min(1).max(10_000_000).optional().describe('Row count (default 1000).'),
   cols: z.number().int().min(1).max(18_278).optional().describe('Column count (default 26).'),
   freezeRows: z.number().int().min(0).optional().describe('Rows to freeze (e.g. 1 for a header).'),
+  freezeCols: z.number().int().min(0).optional().describe('Columns to freeze (e.g. 1 to pin the first column).'),
   tabColor: z.string().optional().describe('Tab color as #RRGGBB hex.'),
 });
 
@@ -98,6 +99,7 @@ export const addSheetOp: Op = {
     if (args.rows !== undefined) gridProperties.rowCount = args.rows;
     if (args.cols !== undefined) gridProperties.columnCount = args.cols;
     if (args.freezeRows !== undefined) gridProperties.frozenRowCount = args.freezeRows;
+    if (args.freezeCols !== undefined) gridProperties.frozenColumnCount = args.freezeCols;
     const properties: Record<string, unknown> = { title };
     if (args.index !== undefined) properties.index = args.index;
     if (Object.keys(gridProperties).length > 0) properties.gridProperties = gridProperties;
@@ -226,6 +228,43 @@ export const insertDeleteDimensionsOp: Op = {
     return {
       text: `${args.action === 'insert' ? 'Inserted' : 'Deleted'} ${count} ${dimension === 'ROWS' ? 'row(s)' : 'column(s)'} at index ${args.startIndex}.`,
       structured: { action: args.action, dimension, count, startIndex: args.startIndex },
+    } satisfies OpResult;
+  },
+};
+
+const moveDimensionSchema = z.object({
+  spreadsheetId: spreadsheetIdParam,
+  sheet: z.string().min(1).describe('Sheet containing the rows/columns to move (name or gid).'),
+  dimension: z.enum(['ROWS', 'COLUMNS']),
+  startIndex: z.number().int().min(0).describe('Start index of the block to move (0-based, inclusive).'),
+  endIndex: z.number().int().min(1).describe('End index (0-based, exclusive — move 1 column at index 2 → endIndex 3).'),
+  destinationIndex: z.number().int().min(0).describe('Index to move the block to (in the array BEFORE the move, 0-based).'),
+});
+
+export const moveDimensionOp: Op = {
+  name: 'move_rows_columns',
+  group: 'core',
+  description:
+    "Move rows or columns to a different position IN PLACE — data, formatting and formulas move with them; nothing is re-typed. Use this to reorder columns (e.g. 'move>Status to the front'), never delete-and-recreate.",
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  inputSchema: zodSchema(moveDimensionSchema),
+  run: async (args, svc) => {
+    const spreadsheetId = parseSpreadsheetId(String(args.spreadsheetId));
+    const scope = makeSheetScope(svc, spreadsheetId);
+    const sheetId = await scope.resolveSheet(String(args.sheet));
+    const dimension = args.dimension as 'ROWS' | 'COLUMNS';
+    await batchUpdate(svc, spreadsheetId, [
+      {
+        moveDimension: {
+          source: { sheetId, dimension, startIndex: args.startIndex, endIndex: args.endIndex },
+          destinationIndex: args.destinationIndex,
+        },
+      },
+    ]);
+    const noun = dimension === 'ROWS' ? 'row(s)' : 'column(s)';
+    return {
+      text: `Moved ${Number(args.endIndex) - Number(args.startIndex)} ${noun} (index ${args.startIndex}–${Number(args.endIndex) - 1}) to index ${args.destinationIndex}. Data, formatting and formulas moved intact.`,
+      structured: { dimension, startIndex: args.startIndex, endIndex: args.endIndex, destinationIndex: args.destinationIndex },
     } satisfies OpResult;
   },
 };

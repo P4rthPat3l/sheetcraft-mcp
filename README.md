@@ -1,9 +1,9 @@
 # sheetcraft-mcp
 
-Google Sheets MCP server + CLI for AI agents. One shared engine, two surfaces:
+Google Sheets MCP server + CLI for AI agents — 33 tools across 6 opt-in toolsets. One shared engine, two surfaces:
 
 - **MCP server** — for chat agents (Claude Desktop, Claude Code, OpenCode, any MCP client). Tools appear in the agent's tool list and are permission-gateable.
-- **CLI** (`sheets`) — for scripts, pipes, and bulk work. Same 32 operations, same auth, same errors, one process per command.
+- **CLI** (`sheets`) — for scripts, pipes, and bulk work. Same 33 operations, same auth, same errors, one process per command.
 
 Designed for agent reliability: **teaching errors** (a bad range returns an example + the list of available sheets, not a stack trace), **token-efficient reads** (CSV defaults, hard cell caps, explicit truncation notices), and **write echoes** (`updatedRange`/`updatedCells` on every write so the agent closes its own loop without a verification read).
 
@@ -204,23 +204,23 @@ Notes for all clients:
 
 ## Toolsets
 
-32 tools ship in 6 opt-in groups. Select with the `SHEETS_TOOLSETS` environment variable — **default is `core,drive`**.
+33 tools ship in 6 opt-in groups. Select with the `SHEETS_TOOLSETS` environment variable — **default is `core,drive`**.
 
 | Toolset | Tools | Register when the agent needs to… |
 |---|---|---|
-| `core` *(default)* | 13 | Read/write values, manage sheets/tabs, find & replace |
+| `core` *(default)* | 14 | Read/write values, manage sheets/tabs, find & replace |
 | `drive` *(default)* | 7 | Create/copy/search/share/trash/export spreadsheets |
 | `formatting` | 5 | Style cells, merge, freeze, conditional formatting |
 | `charts` | 3 | Create/edit/delete embedded charts |
 | `pivot` | 2 | Build pivot tables (see [limitations](#known-limitations)) |
 | `power` | 2 | Raw `batchUpdate` escape hatch + range sorting |
-| `all` | 32 | Everything |
+| `all` | 33 | Everything |
 
 ```bash
-SHEETS_TOOLSETS=core                     # 13 tools  (~4K tokens of schema)
-SHEETS_TOOLSETS=core,drive               # 20 tools  (default)
+SHEETS_TOOLSETS=core                     # 14 tools  (~4K tokens of schema)
+SHEETS_TOOLSETS=core,drive               # 21 tools  (default)
 SHEETS_TOOLSETS=core,drive,formatting,charts
-SHEETS_TOOLSETS=all                      # 32 tools  (~9.4K tokens of schema)
+SHEETS_TOOLSETS=all                      # 33 tools  (~9.7K tokens of schema)
 ```
 
 Unknown names hard-fail at startup. Keep the list small — every tool's schema costs standing tokens in every conversation.
@@ -231,7 +231,7 @@ Unknown names hard-fail at startup. Keep the list small — every tool's schema 
 
 Every data operation takes a `spreadsheetId` (bare ID, or paste a full URL — it's parsed), and sheet parameters accept a quoted name (`'My Sheet'`) or `gid:N`. Every write echoes `updatedRange`/`updatedCells`. Every read is capped (default 5,000 cells) with an explicit truncation notice.
 
-### core — values and sheets (13)
+### core — values and sheets (14)
 
 | Tool | What it does | Key parameters / defaults |
 |---|---|---|
@@ -242,7 +242,8 @@ Every data operation takes a `spreadsheetId` (bare ID, or paste a full URL — i
 | `append_rows` | Append rows below the existing table (auto-detected) | default `INSERT_ROWS` — **never overwrites** rows below the table |
 | `clear_values` | Clear values, keep formatting | destructive |
 | `get_spreadsheet_info` | List tabs with titles, gids, dimensions, frozen state | call this first when all you have is a URL |
-| `add_sheet` / `delete_sheet` / `duplicate_sheet` / `rename_sheet` | Tab management | delete is destructive |
+| `add_sheet` / `delete_sheet` / `duplicate_sheet` / `rename_sheet` | Tab management | delete is destructive; `add_sheet` accepts `freezeRows`/`freezeCols` |
+| `move_rows_columns` | Move rows/columns to a new position **in place** — data, formatting, formulas move intact | the right way to reorder columns; never delete-and-recreate |
 | `insert_delete_dimensions` | Insert/delete rows or columns | indices are **0-based** (0 = first row/column) |
 | `find_replace` | Find & replace across a sheet, range, or whole spreadsheet | `replacement` is required (omitting it would erase matches) |
 
@@ -294,11 +295,11 @@ Every data operation takes a `spreadsheetId` (bare ID, or paste a full URL — i
 
 ## The CLI
 
-The CLI runs the same 32 operations as subcommands — for scripting, piping, and bulk work. Same auth, same errors; any failure prints the same teaching message the MCP tools return and exits **1**.
+The CLI runs the same 33 operations as subcommands — for scripting, piping, and bulk work. Same auth, same errors; any failure prints the same teaching message the MCP tools return and exits **1**.
 
 ```bash
 # discovery
-npx sheetcraft-mcp@latest list                  # all 32 ops by toolset
+npx sheetcraft-mcp@latest list                  # all 33 ops by toolset
 npx sheetcraft-mcp@latest help get_values       # one op's full JSON schema
 
 # operations — args as key=value pairs

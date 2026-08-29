@@ -44,9 +44,9 @@ node dist/wrappers/cli.js help <op>   # one op's JSON schema
 
 ## Not yet implemented (op groups exist in registry but have no ops)
 
-- Nothing — all six toolsets have live ops (core 13, drive 7, formatting 5, charts 3, pivot 2, power 2 = 32 ops).
+- Nothing — all six toolsets have live ops (core 14, drive 7, formatting 5, charts 3, pivot 2, power 2 = 33 ops).
 - OpenCode MCP wiring: server name `sheets` → tools appear as `sheets_<name>`; gate destructive tools with `"sheets_*": "ask"` in agent config.
-- Token budgets (measured via tools/list, chars/3.5): core ≈ 4.0K, all 32 ≈ 9.4K. Keep descriptions tight when adding ops.
+- Token budgets (measured via tools/list, chars/3.5): core ≈ 4.2K, all 33 ≈ 9.7K. Keep descriptions tight when adding ops.
 
 ## Auth modes
 

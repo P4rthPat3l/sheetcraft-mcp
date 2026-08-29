@@ -14,6 +14,7 @@ import {
   duplicateSheetOp,
   renameSheetOp,
   insertDeleteDimensionsOp,
+  moveDimensionOp,
   findReplaceOp,
 } from './structure.js';
 import {
@@ -61,6 +62,7 @@ export const ALL_OPS: readonly Op[] = [
   duplicateSheetOp,
   renameSheetOp,
   insertDeleteDimensionsOp,
+  moveDimensionOp,
   findReplaceOp,
   // drive — file lifecycle
   createSpreadsheetOp,
