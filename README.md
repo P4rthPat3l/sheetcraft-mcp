@@ -363,6 +363,7 @@ cp -r "$(npm root -g)/sheetcraft-mcp/skills/managing-google-sheets" \
 | Write landed in the wrong place | `append_rows` inserts below the table (never overwrites); `update_values` writes exactly the range you name — check `updatedRange` in the echo |
 | `find_replace` erased text | `replacement` was empty/omitted. It's required for this reason |
 | Sorting scrambled headers | `sort_range` sorts the whole range — exclude the header row from the range |
+| Agent says a parameter "doesn't exist" or recalls a tool failing | Its tool list/schema may be stale (server updated mid-session). Re-check with `help <op>` / a fresh tools list — and never work around tools by reading the token store; that's out of bounds |
 
 ## Known limitations
 

@@ -3,7 +3,15 @@ name: managing-google-sheets
 description: Use when reading, writing, formatting, charting, or organizing data in Google Sheets via the sheets CLI (sheetcraft-mcp package). Triggers — the user mentions Google Sheets, a docs.google.com/spreadsheets URL, spreadsheet, sheet, tab, cells, rows, formulas, charts, formatting a sheet, pivot-style summaries, or asks to log/track/update/tabulate data in Sheets.
 ---
 
-# Managing Google Sheets via the `sheets` CLI
+# Managing Google Sheets
+
+
+## Boundaries (read before working around a missing capability)
+
+- **Never read or copy credentials** (`~/.config/sheetcraft-mcp/*`, token stores, service-account keys) and never hand-roll Google API calls in scripts. Everything the API can do is exposed as a tool; if a parameter seems missing, your tool list may be stale.
+- **Tool list is per-session.** If a parameter you remember as missing suddenly matters, re-check the tool's current schema (`help <op>` / tools/list) instead of assuming the old behavior — the server may have been updated.
+- **Bypassing the MCP to call Google APIs directly** (scripts using stored tokens) is out of bounds even when it seems faster. If a tool genuinely can't do something, say so instead of working around it.
+ via the `sheets` CLI
 
 The `sheets` CLI (from the `sheetcraft-mcp` npm package) is the terminal surface for a Google
 Sheets toolset. One install provides both this CLI and an MCP server (`sheets-mcp`); they
